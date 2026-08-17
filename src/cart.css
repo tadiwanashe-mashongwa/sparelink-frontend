@@ -1,5 +1,6 @@
 .place-order { width: 100%; border: 0; border-radius: .4rem; padding: .8rem; background: #0f766e; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .queued-notice { padding: .75rem; border-radius: .4rem; background: #d5f5ea; color: #116149; }
 .cart-items li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.cart-item-actions { display: flex; align-items: center; gap: .75rem; }
 .remove-from-cart { border: 0; background: transparent; color: #b42318; cursor: pointer; font: inherit; font-size: .875rem; font-weight: 700; }
 .remove-from-cart:hover, .remove-from-cart:focus-visible { text-decoration: underline; }

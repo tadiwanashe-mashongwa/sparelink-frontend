@@ -155,6 +155,23 @@ describe('App', () => {
     expect(localStorage.getItem('sparelink.cart')).toBe('[]')
   })
 
+  it('decreases a cart item quantity without removing the item', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-decrease', sku: 'OIL-001', name: 'Engine oil', brandName: 'Castrol', categoryName: 'Lubricants',
+      price: { amount: 1800, currency: 'USD' }, images: [], quantity: 2,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (2)' }))
+    await user.click(screen.getByRole('button', { name: 'Decrease Engine oil quantity' }))
+
+    expect(screen.getByText('Engine oil × 1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cart (1)' })).toBeInTheDocument()
+    expect(localStorage.getItem('sparelink.cart')).toContain('"quantity":1')
+  })
+
   it('queues a cart order locally for later delivery', async () => {
     const user = userEvent.setup()
     localStorage.setItem('sparelink.cart', JSON.stringify([{
