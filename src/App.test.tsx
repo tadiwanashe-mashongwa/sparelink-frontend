@@ -150,11 +150,11 @@ describe('App', () => {
       token: 'customer-token',
       tokenParsed: { sub: 'customer-1' },
     })
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { content: [] } }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ content: [{
-        orderId: 'order-1', customerId: 'customer-1', status: 'PAID', totalAmount: 45.5, createdAt: '2026-08-17T08:00:00Z',
-      }] }) })
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url.startsWith('/api/parts')
+      ? { ok: true, json: async () => ({ success: true, data: { content: [] } }) }
+      : url.startsWith('/api/orders')
+        ? { ok: true, json: async () => ({ content: [{ orderId: 'order-1', customerId: 'customer-1', status: 'PAID', totalAmount: 45.5, createdAt: '2026-08-17T08:00:00Z' }] }) }
+        : { ok: true, json: async () => ({ content: [] }) }))
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App />)
@@ -169,5 +169,27 @@ describe('App', () => {
       token: originalToken,
       tokenParsed: originalTokenParsed,
     })
+  })
+
+  it('shows the signed-in customer their payment status', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-2' } })
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url.startsWith('/api/parts')
+      ? { ok: true, json: async () => ({ success: true, data: { content: [] } }) }
+      : url.startsWith('/api/orders')
+        ? { ok: true, json: async () => ({ content: [] }) }
+        : { ok: true, json: async () => ({ content: [{ id: 'payment-1', orderId: 'order-2', customerId: 'customer-2', amount: 45.5, status: 'PENDING' }] }) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Payments' })).toBeInTheDocument()
+    expect(screen.getByText('PENDING')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/payments/customer/customer-2?size=5', {
+      headers: { Authorization: 'Bearer customer-token' },
+    })
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
 })

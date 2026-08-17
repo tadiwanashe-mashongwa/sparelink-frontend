@@ -11,6 +11,8 @@ type CartItem = Part & { quantity: number }
 type CatalogueResponse = { data: { content: Part[] } }
 type OrderSummary = { orderId: string; status: string; totalAmount: number; createdAt: string }
 type OrderPage = { content: OrderSummary[] }
+type Payment = { id: string; orderId: string; amount: number; status: string }
+type PaymentPage = { content: Payment[] }
 
 function formatPrice({ amount, currency }: Money) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency, currencyDisplay: 'code' }).format(amount / 100)
@@ -37,6 +39,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [orderQueued, setOrderQueued] = useState(false)
   const [orders, setOrders] = useState<OrderSummary[]>([])
+  const [payments, setPayments] = useState<Payment[]>([])
 
   useEffect(() => { localStorage.setItem(CART_CACHE_KEY, JSON.stringify(cart)) }, [cart])
 
@@ -48,6 +51,17 @@ export default function App() {
     flush()
     window.addEventListener('online', flush)
     return () => window.removeEventListener('online', flush)
+  }, [])
+
+  useEffect(() => {
+    const customerId = keycloak.tokenParsed?.sub
+    if (!keycloak.authenticated || !keycloak.token || !customerId) return
+    void fetch(`/api/payments/customer/${customerId}?size=5`, {
+      headers: { Authorization: `Bearer ${keycloak.token}` },
+    })
+      .then(async (response) => response.ok ? response.json() as Promise<PaymentPage> : { content: [] })
+      .then((payload) => setPayments(payload.content ?? []))
+      .catch(() => setPayments([]))
   }, [])
 
   function addToCart(part: Part) {
@@ -95,7 +109,7 @@ export default function App() {
       headers: { Authorization: `Bearer ${keycloak.token}` },
     })
       .then(async (response) => response.ok ? response.json() as Promise<OrderPage> : { content: [] })
-      .then((payload) => setOrders(payload.content))
+      .then((payload) => setOrders(payload.content ?? []))
       .catch(() => setOrders([]))
   }, [])
 
@@ -118,5 +132,6 @@ export default function App() {
       </article>)}</div>
     </section>
     {keycloak.authenticated && <section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section>}
+    {keycloak.authenticated && <section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section>}
   </main>
 }

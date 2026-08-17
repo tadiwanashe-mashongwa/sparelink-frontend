@@ -18,6 +18,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/orders': 'http://localhost:8083',
+      '/api/payments': 'http://localhost:8084',
       '/api': 'http://localhost:8081',
     },
   },
