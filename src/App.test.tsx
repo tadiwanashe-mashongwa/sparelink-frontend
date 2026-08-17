@@ -154,6 +154,22 @@ describe('App', () => {
     expect(getQueuedOrders()[0]).toMatchObject({ items: [{ partId: 'part-6', quantity: 1 }] })
   })
 
+  it('queues only one order when checkout is clicked twice quickly', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-7', sku: 'SUS-001', name: 'Shock absorber', brandName: 'Monroe', categoryName: 'Suspension',
+      price: { amount: 7500, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    const placeOrder = screen.getByRole('button', { name: 'Place order' })
+    await user.dblClick(placeOrder)
+
+    expect(getQueuedOrders()).toHaveLength(1)
+  })
+
   it('shows the signed-in customer their recent orders', async () => {
     const originalAuthentication = keycloak.authenticated
     const originalToken = keycloak.token
