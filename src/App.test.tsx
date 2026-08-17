@@ -102,7 +102,7 @@ describe('App', () => {
   it('starts Keycloak sign-in when the customer chooses sign in', async () => {
     const user = userEvent.setup()
     const login = vi.spyOn(keycloak, 'login').mockResolvedValue(undefined)
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
 
     render(<App />)
     await user.click(await screen.findByRole('button', { name: 'Sign in' }))
@@ -234,11 +234,12 @@ describe('App', () => {
 
   it('queues a cart order locally for later delivery', async () => {
     const user = userEvent.setup()
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-queued' } })
     localStorage.setItem('sparelink.cart', JSON.stringify([{
       id: 'part-6', sku: 'PMP-001', name: 'Water pump', brandName: 'Aisin', categoryName: 'Cooling',
       price: { amount: 6000, currency: 'USD' }, images: [], quantity: 1,
     }]))
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
 
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
@@ -249,8 +250,57 @@ describe('App', () => {
     expect(getQueuedOrders()[0]).toMatchObject({ items: [{ partId: 'part-6', quantity: 1 }] })
   })
 
+  it('requires sign-in before an anonymous customer can start checkout', async () => {
+    const user = userEvent.setup()
+    Object.assign(keycloak, { authenticated: false, token: undefined, tokenParsed: undefined })
+    const login = vi.spyOn(keycloak, 'login').mockResolvedValue(undefined)
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-sign-in-checkout', sku: 'PMP-003', name: 'Radiator hose', brandName: 'Gates', categoryName: 'Cooling',
+      price: { amount: 3600, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+
+    expect(login).toHaveBeenCalledWith({ redirectUri: window.location.origin })
+    expect(screen.queryByRole('heading', { name: 'Review your order' })).not.toBeInTheDocument()
+  })
+
+  it('submits an authenticated customer order immediately when online', async () => {
+    const user = userEvent.setup()
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-order' } })
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-online-order', sku: 'PMP-004', name: 'Oil pump', brandName: 'Aisin', categoryName: 'Engine',
+      price: { amount: 9500, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url === '/api/orders'
+      ? { ok: true, json: async () => ({ orderId: 'order-online' }) }
+      : { ok: true, json: async () => ({ content: [], data: { content: [] } }) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm order' }))
+
+    expect(await screen.findByText('Order placed successfully.')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/orders', expect.objectContaining({
+      method: 'POST',
+      headers: expect.objectContaining({ Authorization: 'Bearer customer-token' }),
+      body: JSON.stringify({ customerId: 'customer-order', items: [{ partId: 'part-online-order', quantity: 1 }] }),
+    }))
+    expect(getQueuedOrders()).toHaveLength(0)
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
+  })
+
   it('opens a checkout review before submitting the cart', async () => {
     const user = userEvent.setup()
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-review' } })
     localStorage.setItem('sparelink.cart', JSON.stringify([{
       id: 'part-checkout', sku: 'BAT-001', name: 'Starter battery', brandName: 'Bosch', categoryName: 'Electrical',
       price: { amount: 11000, currency: 'USD' }, images: [], quantity: 1,
@@ -268,6 +318,7 @@ describe('App', () => {
 
   it('returns to the open cart when the customer leaves checkout', async () => {
     const user = userEvent.setup()
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-back' } })
     localStorage.setItem('sparelink.cart', JSON.stringify([{
       id: 'part-back-to-cart', sku: 'FLT-004', name: 'Cabin air filter', brandName: 'Mann', categoryName: 'Filters',
       price: { amount: 2800, currency: 'USD' }, images: [], quantity: 1,
@@ -285,11 +336,12 @@ describe('App', () => {
 
   it('shows how many orders are waiting for delivery after checkout', async () => {
     const user = userEvent.setup()
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-pending' } })
     localStorage.setItem('sparelink.cart', JSON.stringify([{
       id: 'part-pending', sku: 'PMP-002', name: 'Fuel pump', brandName: 'Bosch', categoryName: 'Fuel',
       price: { amount: 8000, currency: 'USD' }, images: [], quantity: 1,
     }]))
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
 
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
@@ -329,11 +381,12 @@ describe('App', () => {
 
   it('queues only one order when checkout is clicked twice quickly', async () => {
     const user = userEvent.setup()
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-double-click' } })
     localStorage.setItem('sparelink.cart', JSON.stringify([{
       id: 'part-7', sku: 'SUS-001', name: 'Shock absorber', brandName: 'Monroe', categoryName: 'Suspension',
       price: { amount: 7500, currency: 'USD' }, images: [], quantity: 1,
     }]))
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
 
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))

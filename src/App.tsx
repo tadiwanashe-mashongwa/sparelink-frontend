@@ -58,6 +58,8 @@ export default function App() {
   const [queuedOrderCount, setQueuedOrderCount] = useState(getQueuedOrders().length)
   const [deliveredOrderCount, setDeliveredOrderCount] = useState(0)
   const [hasQueuedOrderDeliveryFailure, setHasQueuedOrderDeliveryFailure] = useState(false)
+  const [orderPlaced, setOrderPlaced] = useState(false)
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false)
   const [orders, setOrders] = useState<OrderSummary[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
   const [ordersUnavailable, setOrdersUnavailable] = useState(false)
@@ -109,11 +111,41 @@ export default function App() {
     setCart((currentCart) => currentCart.map((item) => item.id === partId ? { ...item, quantity: item.quantity + 1 } : item))
   }
 
-  function queueCartOrder() {
-    enqueueOrder(cart.map((item) => ({ partId: item.id, quantity: item.quantity })))
-    setCart([])
-    setQueuedOrderCount(getQueuedOrders().length)
-    setIsCheckoutOpen(false)
+  function startCheckout() {
+    if (!keycloak.authenticated) {
+      void keycloak.login({ redirectUri: window.location.origin })
+      return
+    }
+    setIsCartOpen(false)
+    setIsCheckoutOpen(true)
+  }
+
+  async function submitCartOrder() {
+    const customerId = keycloak.tokenParsed?.sub
+    if (!keycloak.authenticated || !keycloak.token || !customerId) {
+      void keycloak.login({ redirectUri: window.location.origin })
+      return
+    }
+    if (isSubmittingOrder) return
+    setIsSubmittingOrder(true)
+    const items = cart.map((item) => ({ partId: item.id, quantity: item.quantity }))
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
+        body: JSON.stringify({ customerId, items }),
+      })
+      if (!response.ok) throw new Error('Order request failed')
+      setCart([])
+      setOrderPlaced(true)
+    } catch {
+      enqueueOrder(items)
+      setCart([])
+      setQueuedOrderCount(getQueuedOrders().length)
+    } finally {
+      setIsCheckoutOpen(false)
+      setIsSubmittingOrder(false)
+    }
   }
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0)
@@ -183,9 +215,10 @@ export default function App() {
     <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home" onClick={(event) => { event.preventDefault(); setActiveView('browse') }}>Spare<span>Link</span></a><nav className="primary-navigation" aria-label="Primary navigation"><button type="button" className={activeView === 'browse' ? 'active' : ''} onClick={() => setActiveView('browse')}>Browse</button>{keycloak.authenticated && <button type="button" className={activeView === 'account' ? 'active' : ''} onClick={() => setActiveView('account')}>My account</button>}</nav><div className="header-actions"><p>Find the right part, even on a patchy connection.</p><button className="cart-button" type="button" onClick={() => setIsCartOpen(true)}>Cart ({cartCount})</button>{keycloak.authenticated ? <><span className="signed-in">Signed in</span><button className="sign-out" type="button" onClick={() => void keycloak.logout({ redirectUri: window.location.origin })}>Sign out</button></> : <><button className="create-account" type="button" onClick={() => void keycloak.register({ redirectUri: window.location.origin })}>Create account</button><button className="sign-in" type="button" onClick={() => void keycloak.login()}>Sign in</button></>}</div></header>
     {deliveredOrderCount > 0 && <p className="delivery-notice" role="status">{deliveredOrderCount} queued {deliveredOrderCount === 1 ? 'order' : 'orders'} delivered successfully.</p>}
     {hasQueuedOrderDeliveryFailure && <p className="retry-notice" role="status">Your queued order is safe and will retry when you are online.</p>}
+    {orderPlaced && <p className="delivery-notice" role="status">Order placed successfully.</p>}
     {queuedOrderCount > 0 && <p className="queued-notice" role="status">{queuedOrderCount} {queuedOrderCount === 1 ? 'order' : 'orders'} waiting for delivery when you are online.</p>}
-    {isCheckoutOpen && <section className="checkout-view" aria-labelledby="checkout-heading"><button className="back-to-catalogue" type="button" onClick={() => { setIsCheckoutOpen(false); setIsCartOpen(true) }}>Back to cart</button><p className="eyebrow">Checkout</p><h1 id="checkout-heading">Review your order</h1><ul className="checkout-items">{cart.map((item) => <li key={item.id}>{item.name} × {item.quantity}<span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></li>)}</ul><p className="cart-total">Order total: {formatPrice({ amount: cartTotal, currency: cart[0].price.currency })}</p><button className="place-order" type="button" onClick={queueCartOrder}>Confirm order</button></section>}
-    {isCartOpen && <aside className="cart-panel" aria-labelledby="cart-heading"><div className="cart-panel-heading"><h2 id="cart-heading">Your cart</h2><button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button></div>{queuedOrderCount > 0 && <p className="queued-notice" role="status">{queuedOrderCount} {queuedOrderCount === 1 ? 'order' : 'orders'} waiting for delivery when you are online.</p>}{cart.length === 0 ? <p>Your cart is empty.</p> : <><ul className="cart-items">{cart.map((item) => <li key={item.id}><div><strong>{item.name} × {item.quantity}</strong><span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></div><div className="cart-item-actions"><button className="remove-from-cart" type="button" onClick={() => decreaseCartItemQuantity(item.id)} aria-label={`Decrease ${item.name} quantity`}>−</button><button className="increase-cart-item" type="button" onClick={() => increaseCartItemQuantity(item.id)} aria-label={`Increase ${item.name} quantity`}>+</button><button className="remove-from-cart" type="button" onClick={() => removeFromCart(item.id)} aria-label={`Remove ${item.name} from cart`}>Remove</button></div></li>)}</ul><p className="cart-total">Cart total: {formatPrice({ amount: cartTotal, currency: cart[0].price.currency })}</p><button className="place-order" type="button" onClick={() => { setIsCartOpen(false); setIsCheckoutOpen(true) }}>Checkout</button></>}</aside>}
+    {isCheckoutOpen && <section className="checkout-view" aria-labelledby="checkout-heading"><button className="back-to-catalogue" type="button" onClick={() => { setIsCheckoutOpen(false); setIsCartOpen(true) }}>Back to cart</button><p className="eyebrow">Checkout</p><h1 id="checkout-heading">Review your order</h1><ul className="checkout-items">{cart.map((item) => <li key={item.id}>{item.name} × {item.quantity}<span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></li>)}</ul><p className="cart-total">Order total: {formatPrice({ amount: cartTotal, currency: cart[0].price.currency })}</p><button className="place-order" type="button" disabled={isSubmittingOrder} onClick={() => void submitCartOrder()}>{isSubmittingOrder ? 'Placing order…' : 'Confirm order'}</button></section>}
+    {isCartOpen && <aside className="cart-panel" aria-labelledby="cart-heading"><div className="cart-panel-heading"><h2 id="cart-heading">Your cart</h2><button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button></div>{queuedOrderCount > 0 && <p className="queued-notice" role="status">{queuedOrderCount} {queuedOrderCount === 1 ? 'order' : 'orders'} waiting for delivery when you are online.</p>}{cart.length === 0 ? <p>Your cart is empty.</p> : <><ul className="cart-items">{cart.map((item) => <li key={item.id}><div><strong>{item.name} × {item.quantity}</strong><span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></div><div className="cart-item-actions"><button className="remove-from-cart" type="button" onClick={() => decreaseCartItemQuantity(item.id)} aria-label={`Decrease ${item.name} quantity`}>−</button><button className="increase-cart-item" type="button" onClick={() => increaseCartItemQuantity(item.id)} aria-label={`Increase ${item.name} quantity`}>+</button><button className="remove-from-cart" type="button" onClick={() => removeFromCart(item.id)} aria-label={`Remove ${item.name} from cart`}>Remove</button></div></li>)}</ul><p className="cart-total">Cart total: {formatPrice({ amount: cartTotal, currency: cart[0].price.currency })}</p><button className="place-order" type="button" onClick={startCheckout}>Checkout</button></>}</aside>}
     {activeView === 'browse' && <section className="catalogue" aria-labelledby="catalogue-heading">
       <div className="catalogue-heading"><div><p className="eyebrow">Spare parts marketplace</p><h1 id="catalogue-heading">Browse parts</h1></div><span className="connection-status">{isOffline ? 'Offline catalogue' : 'Live catalogue'}</span></div>
       {selectedPart ? <section className="part-details" aria-labelledby="part-details-heading"><button className="back-to-catalogue" type="button" onClick={() => setSelectedPart(null)}>Back to catalogue</button><p className="eyebrow">Part details</p><h1 id="part-details-heading">{selectedPart.name}</h1><p className="part-meta">{selectedPart.brandName} · {selectedPart.categoryName}</p><p className="sku">SKU {selectedPart.sku}</p><strong>{formatPrice(selectedPart.price)}</strong><button className="add-to-cart" type="button" onClick={() => addToCart(selectedPart)}>Add {selectedPart.name} to cart</button></section> : <><form className="search-form" onSubmit={(event) => { event.preventDefault(); void loadParts(search.trim()) }}>
