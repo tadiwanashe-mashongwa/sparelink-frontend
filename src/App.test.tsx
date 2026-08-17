@@ -278,6 +278,7 @@ describe('App', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'My account' }))
 
     expect(await screen.findByRole('heading', { name: 'Recent orders' })).toBeInTheDocument()
     expect(screen.getByText('PAID')).toBeInTheDocument()
@@ -305,6 +306,7 @@ describe('App', () => {
     vi.stubGlobal('fetch', fetchMock)
 
     render(<App />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'My account' }))
 
     expect(await screen.findByRole('heading', { name: 'Payments' })).toBeInTheDocument()
     expect(screen.getByText('PENDING')).toBeInTheDocument()
@@ -325,9 +327,25 @@ describe('App', () => {
       : { ok: false, json: async () => ({}) })))
 
     render(<App />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'My account' }))
 
     expect(await screen.findByText('Recent orders are unavailable right now. Please try again shortly.')).toBeInTheDocument()
     expect(screen.getByText('Payments are unavailable right now. Please try again shortly.')).toBeInTheDocument()
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
+  })
+
+  it('lets a signed-in customer open their account view', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-account' } })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ content: [], data: { content: [] } }) }))
+
+    render(<App />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'My account' }))
+
+    expect(await screen.findByRole('heading', { name: 'Recent orders' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Browse parts' })).not.toBeInTheDocument()
     Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
 })
