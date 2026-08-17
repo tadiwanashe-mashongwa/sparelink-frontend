@@ -107,4 +107,20 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Cart (1)' })).toBeInTheDocument()
     expect(localStorage.getItem('sparelink.cart')).toContain('part-4')
   })
+
+  it('shows persisted cart items when the cart is opened', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-5', sku: 'BLT-001', name: 'Alternator belt', brandName: 'Gates', categoryName: 'Belts',
+      price: { amount: 2500, currency: 'USD' }, images: [], quantity: 2,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (2)' }))
+
+    expect(screen.getByRole('heading', { name: 'Your cart' })).toBeInTheDocument()
+    expect(screen.getByText('Alternator belt × 2')).toBeInTheDocument()
+    expect(screen.getByText('USD 50.00')).toBeInTheDocument()
+  })
 })
