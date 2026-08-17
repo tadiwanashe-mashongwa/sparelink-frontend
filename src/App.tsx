@@ -19,26 +19,38 @@ export default function App() {
   const [parts, setParts] = useState<Part[]>([])
   const [isOffline, setIsOffline] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  async function loadParts(keyword = '') {
+    setIsLoading(true)
+    setIsOffline(false)
+    try {
+      const parameters = new URLSearchParams({ status: 'ACTIVE', size: '20' })
+      if (keyword) parameters.set('keyword', keyword)
+      const response = await fetch(`/api/parts?${parameters.toString()}`)
+      if (!response.ok) throw new Error('Catalogue request failed')
+      const payload = (await response.json()) as CatalogueResponse
+      setParts(payload.data.content)
+      if (!keyword) localStorage.setItem(CATALOGUE_CACHE_KEY, JSON.stringify(payload.data.content))
+    } catch {
+      const cachedParts = loadCachedParts()
+      setParts(cachedParts)
+      setIsOffline(cachedParts.length > 0)
+    } finally { setIsLoading(false) }
+  }
+
   useEffect(() => {
-    async function loadParts() {
-      try {
-        const response = await fetch('/api/parts?status=ACTIVE&size=20')
-        if (!response.ok) throw new Error('Catalogue request failed')
-        const payload = (await response.json()) as CatalogueResponse
-        setParts(payload.data.content)
-        localStorage.setItem(CATALOGUE_CACHE_KEY, JSON.stringify(payload.data.content))
-      } catch {
-        const cachedParts = loadCachedParts()
-        setParts(cachedParts)
-        setIsOffline(cachedParts.length > 0)
-      } finally { setIsLoading(false) }
-    }
     void loadParts()
-  }, [])
+  }, []) // The first load must occur once; searches are explicit user actions.
   return <main className="app-shell">
     <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home">Spare<span>Link</span></a><p>Find the right part, even on a patchy connection.</p></header>
     <section className="catalogue" aria-labelledby="catalogue-heading">
       <div className="catalogue-heading"><div><p className="eyebrow">Spare parts marketplace</p><h1 id="catalogue-heading">Browse parts</h1></div><span className="connection-status">{isOffline ? 'Offline catalogue' : 'Live catalogue'}</span></div>
+      <form className="search-form" onSubmit={(event) => { event.preventDefault(); void loadParts(search.trim()) }}>
+        <label className="sr-only" htmlFor="part-search">Search parts</label>
+        <input id="part-search" type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by name, SKU or brand" />
+        <button type="submit">Search</button>
+      </form>
       {isOffline && <p className="offline-notice" role="status">Showing saved catalogue data while you are offline.</p>}
       {isLoading && <p role="status">Loading parts…</p>}
       {!isLoading && parts.length === 0 && <p>No parts are available yet. Please reconnect and try again.</p>}

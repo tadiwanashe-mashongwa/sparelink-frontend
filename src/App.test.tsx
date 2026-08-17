@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 
@@ -54,5 +55,27 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Oil filter' })).toBeInTheDocument()
     expect(screen.getByText('Showing saved catalogue data while you are offline.')).toBeInTheDocument()
+  })
+
+  it('searches the catalogue by part name', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { content: [] } }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({
+        success: true,
+        data: { content: [{
+          id: 'part-3', sku: 'PAD-001', name: 'Brake pad', brandName: 'Bosch', categoryName: 'Brakes',
+          price: { amount: 3000, currency: 'USD' }, images: [],
+        }] },
+      }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await screen.findByText('No parts are available yet. Please reconnect and try again.')
+    await user.type(screen.getByRole('searchbox', { name: 'Search parts' }), 'brake pad')
+    await user.click(screen.getByRole('button', { name: 'Search' }))
+
+    expect(await screen.findByRole('heading', { name: 'Brake pad' })).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenLastCalledWith('/api/parts?status=ACTIVE&size=20&keyword=brake+pad')
   })
 })
