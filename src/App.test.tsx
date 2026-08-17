@@ -140,4 +140,34 @@ describe('App', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Order saved for delivery when you are online.')
     expect(getQueuedOrders()[0]).toMatchObject({ items: [{ partId: 'part-6', quantity: 1 }] })
   })
+
+  it('shows the signed-in customer their recent orders', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, {
+      authenticated: true,
+      token: 'customer-token',
+      tokenParsed: { sub: 'customer-1' },
+    })
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, data: { content: [] } }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ content: [{
+        orderId: 'order-1', customerId: 'customer-1', status: 'PAID', totalAmount: 45.5, createdAt: '2026-08-17T08:00:00Z',
+      }] }) })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Recent orders' })).toBeInTheDocument()
+    expect(screen.getByText('PAID')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/orders/customer/customer-1?size=5', {
+      headers: { Authorization: 'Bearer customer-token' },
+    })
+    Object.assign(keycloak, {
+      authenticated: originalAuthentication,
+      token: originalToken,
+      tokenParsed: originalTokenParsed,
+    })
+  })
 })
