@@ -84,21 +84,7 @@ export default function App() {
     return () => window.removeEventListener('online', flush)
   }, [])
 
-  useEffect(() => {
-    const customerId = keycloak.tokenParsed?.sub
-    if (!keycloak.authenticated || !keycloak.token || !customerId) return
-    setIsLoadingPayments(true)
-    void fetch(`/api/payments/customer/${customerId}?size=5`, {
-      headers: { Authorization: `Bearer ${keycloak.token}` },
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Payments request failed')
-        return response.json() as Promise<PaymentPage>
-      })
-      .then((payload) => { setPayments(payload.content ?? []); setPaymentsUnavailable(false) })
-      .catch(() => { setPayments([]); setPaymentsUnavailable(true) })
-      .finally(() => setIsLoadingPayments(false))
-  }, [])
+  useEffect(() => { void loadPayments() }, [])
 
   function addToCart(part: Part) {
     setCart((currentCart) => {
@@ -155,21 +141,43 @@ export default function App() {
     void loadParts()
   }, []) // The first load must occur once; searches are explicit user actions.
 
-  useEffect(() => {
+  useEffect(() => { void loadOrders() }, [])
+
+  async function loadOrders() {
     const customerId = keycloak.tokenParsed?.sub
     if (!keycloak.authenticated || !keycloak.token || !customerId) return
     setIsLoadingOrders(true)
-    void fetch(`/api/orders/customer/${customerId}?size=5`, {
-      headers: { Authorization: `Bearer ${keycloak.token}` },
-    })
-      .then(async (response) => {
-        if (!response.ok) throw new Error('Orders request failed')
-        return response.json() as Promise<OrderPage>
-      })
-      .then((payload) => { setOrders(payload.content ?? []); setOrdersUnavailable(false) })
-      .catch(() => { setOrders([]); setOrdersUnavailable(true) })
-      .finally(() => setIsLoadingOrders(false))
-  }, [])
+    try {
+      const response = await fetch(`/api/orders/customer/${customerId}?size=5`, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+      if (!response.ok) throw new Error('Orders request failed')
+      const payload = await response.json() as OrderPage
+      setOrders(payload.content ?? [])
+      setOrdersUnavailable(false)
+    } catch {
+      setOrders([])
+      setOrdersUnavailable(true)
+    } finally { setIsLoadingOrders(false) }
+  }
+
+  async function loadPayments() {
+    const customerId = keycloak.tokenParsed?.sub
+    if (!keycloak.authenticated || !keycloak.token || !customerId) return
+    setIsLoadingPayments(true)
+    try {
+      const response = await fetch(`/api/payments/customer/${customerId}?size=5`, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+      if (!response.ok) throw new Error('Payments request failed')
+      const payload = await response.json() as PaymentPage
+      setPayments(payload.content ?? [])
+      setPaymentsUnavailable(false)
+    } catch {
+      setPayments([])
+      setPaymentsUnavailable(true)
+    } finally { setIsLoadingPayments(false) }
+  }
+
+  function refreshAccountActivity() {
+    void Promise.all([loadOrders(), loadPayments()])
+  }
 
   return <main className="app-shell">
     <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home" onClick={(event) => { event.preventDefault(); setActiveView('browse') }}>Spare<span>Link</span></a><nav className="primary-navigation" aria-label="Primary navigation"><button type="button" className={activeView === 'browse' ? 'active' : ''} onClick={() => setActiveView('browse')}>Browse</button>{keycloak.authenticated && <button type="button" className={activeView === 'account' ? 'active' : ''} onClick={() => setActiveView('account')}>My account</button>}</nav><div className="header-actions"><p>Find the right part, even on a patchy connection.</p><button className="cart-button" type="button" onClick={() => setIsCartOpen(true)}>Cart ({cartCount})</button>{keycloak.authenticated ? <><span className="signed-in">Signed in</span><button className="sign-out" type="button" onClick={() => void keycloak.logout({ redirectUri: window.location.origin })}>Sign out</button></> : <button className="sign-in" type="button" onClick={() => void keycloak.login()}>Sign in</button>}</div></header>
@@ -193,6 +201,6 @@ export default function App() {
         <div className="part-content"><p className="part-meta">{part.brandName} · {part.categoryName}</p><h2>{part.name}</h2><p className="sku">SKU {part.sku}</p><strong>{formatPrice(part.price)}</strong><button className="view-details" type="button" onClick={() => setSelectedPart(part)} aria-label={`View ${part.name} details`}>View details</button><button className="add-to-cart" type="button" onClick={() => addToCart(part)}>Add {part.name} to cart</button></div>
       </article>)}</div></>}
     </section>}
-    {keycloak.authenticated && activeView === 'account' && <section className="account-view" aria-labelledby="account-heading"><p className="eyebrow">Customer account</p><h1 id="account-heading">Your SpareLink activity</h1><section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{isLoadingOrders ? <p role="status">Loading recent orders…</p> : ordersUnavailable ? <p>Recent orders are unavailable right now. Please try again shortly.</p> : orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><span className="order-progress">{describeOrderStatus(order.status)}</span><span>Total: {formatServiceAmount(order.totalAmount)}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section><section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{isLoadingPayments ? <p role="status">Loading payments…</p> : paymentsUnavailable ? <p>Payments are unavailable right now. Please try again shortly.</p> : payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Amount: {formatServiceAmount(payment.amount)}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section></section>}
+    {keycloak.authenticated && activeView === 'account' && <section className="account-view" aria-labelledby="account-heading"><p className="eyebrow">Customer account</p><h1 id="account-heading">Your SpareLink activity</h1><button className="refresh-activity" type="button" onClick={refreshAccountActivity}>Refresh activity</button><section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{isLoadingOrders ? <p role="status">Loading recent orders…</p> : ordersUnavailable ? <p>Recent orders are unavailable right now. Please try again shortly.</p> : orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><span className="order-progress">{describeOrderStatus(order.status)}</span><span>Total: {formatServiceAmount(order.totalAmount)}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section><section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{isLoadingPayments ? <p role="status">Loading payments…</p> : paymentsUnavailable ? <p>Payments are unavailable right now. Please try again shortly.</p> : payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Amount: {formatServiceAmount(payment.amount)}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section></section>}
   </main>
 }

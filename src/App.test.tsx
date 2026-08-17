@@ -380,6 +380,26 @@ describe('App', () => {
     Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
 
+  it('refreshes order and payment activity on demand', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-refresh' } })
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url.startsWith('/api/parts')
+      ? { ok: true, json: async () => ({ success: true, data: { content: [] } }) }
+      : { ok: true, json: async () => ({ content: [] }) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'My account' }))
+    await screen.findByText('No orders yet.')
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Refresh activity' }))
+
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/orders'))).toHaveLength(2)
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/payments'))).toHaveLength(2)
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
+  })
+
   it('shows the signed-in customer their payment status', async () => {
     const originalAuthentication = keycloak.authenticated
     const originalToken = keycloak.token
