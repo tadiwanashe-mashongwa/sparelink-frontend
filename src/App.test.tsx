@@ -36,6 +36,24 @@ describe('App', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/parts?status=ACTIVE&size=20')
   })
 
+  it('opens a part detail view from the catalogue', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { content: [{
+        id: 'part-detail', sku: 'BRK-010', name: 'Premium brake disc', brandName: 'Brembo', categoryName: 'Brakes',
+        price: { amount: 9000, currency: 'USD' }, images: [],
+      }] } }),
+    }))
+
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'View Premium brake disc details' }))
+
+    expect(screen.getByRole('heading', { name: 'Premium brake disc' })).toBeInTheDocument()
+    expect(screen.getByText('Part details')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to catalogue' })).toBeInTheDocument()
+  })
+
   it('shows cached parts when the catalogue cannot be reached', async () => {
     localStorage.setItem(
       'sparelink.catalogue.parts',
