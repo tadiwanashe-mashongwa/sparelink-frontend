@@ -8,9 +8,11 @@ The customer-facing Progressive Web App for the SpareLink automotive spare-parts
 ## Features
 
 - Browse and search active catalogue parts.
+- Persist a cart locally, adjust quantities, remove items, and review the order total before checkout.
 - Cache the catalogue and cart locally for unreliable connections.
 - Sign in through Keycloak using authorization-code flow with PKCE.
-- Queue orders in local storage and deliver them automatically after sign-in or when the browser reconnects.
+- Show recent orders, their totals, payment statuses, and payment amounts for the signed-in customer.
+- Queue orders in local storage and deliver them automatically after sign-in or when the browser reconnects, with clear delivery and retry feedback.
 - Use a stable `Idempotency-Key` for each queued order, so retries cannot create duplicate orders.
 - Installable PWA with an offline service worker.
 
@@ -43,6 +45,7 @@ The development server proxies requests as follows:
 | --- | --- |
 | `/api/parts` | catalogue-service (`8081`) |
 | `/api/orders` | order-service (`8083`) |
+| `/api/payments` | payment-service (`8084`) |
 
 Keycloak defaults to `http://localhost:8080`, realm `sparelink`, client `sparelink-api`. Set `VITE_KEYCLOAK_URL` to use another Keycloak instance.
 
@@ -53,7 +56,7 @@ npm test
 npm run build
 ```
 
-The GitHub Actions workflow runs both checks on pushes and pull requests to `main`.
+The GitHub Actions workflow runs tests, produces a coverage report and badge, and builds the production bundle on pushes and pull requests to `main`.
 
 ## Order delivery flow
 
