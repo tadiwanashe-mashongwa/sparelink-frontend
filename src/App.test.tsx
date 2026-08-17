@@ -172,6 +172,20 @@ describe('App', () => {
     expect(localStorage.getItem('sparelink.cart')).toContain('"quantity":1')
   })
 
+  it('shows the total amount before the customer places an order', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-total', sku: 'BRK-010', name: 'Brake disc', brandName: 'Brembo', categoryName: 'Brakes',
+      price: { amount: 4500, currency: 'USD' }, images: [], quantity: 2,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (2)' }))
+
+    expect(screen.getByText('Cart total: USD 90.00')).toBeInTheDocument()
+  })
+
   it('queues a cart order locally for later delivery', async () => {
     const user = userEvent.setup()
     localStorage.setItem('sparelink.cart', JSON.stringify([{
