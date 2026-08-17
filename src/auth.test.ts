@@ -4,7 +4,7 @@ import { keycloak, keycloakConfiguration, refreshAuthenticationToken } from './a
 describe('Keycloak configuration', () => {
   it('uses the SpareLink public client and realm', () => {
     expect(keycloakConfiguration).toEqual({
-      url: 'http://localhost:8080',
+      url: 'http://keycloak:8080',
       realm: 'sparelink',
       clientId: 'sparelink-api',
     })

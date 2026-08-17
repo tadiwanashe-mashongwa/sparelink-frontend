@@ -110,15 +110,31 @@ describe('App', () => {
     expect(login).toHaveBeenCalledOnce()
   })
 
-  it('starts Keycloak registration when the customer chooses create account', async () => {
-    const user = userEvent.setup()
-    const register = vi.spyOn(keycloak, 'register').mockResolvedValue(undefined)
+  it('links customers to the Keycloak registration page', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
 
     render(<App />)
-    await user.click(await screen.getByRole('button', { name: 'Create account' }))
+    const registrationLink = await screen.getByRole('link', { name: 'Create account' })
 
-    expect(register).toHaveBeenCalledWith({ redirectUri: window.location.origin })
+    expect(registrationLink).toHaveAttribute('href', expect.stringContaining('/realms/sparelink/protocol/openid-connect/registrations'))
+    expect(registrationLink).toHaveAttribute('href', expect.stringContaining('client_id=sparelink-api'))
+  })
+
+  it('shows live inventory availability in part details', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.fn((url: string) => Promise.resolve(url.startsWith('/api/inventory/stock/')
+      ? { ok: true, json: async () => 3 }
+      : { ok: true, json: async () => ({ success: true, data: { content: [{
+        id: 'part-stock', sku: 'FLT-010', name: 'Fuel filter', brandName: 'Bosch', categoryName: 'Filters',
+        price: { amount: 2400, currency: 'USD' }, images: [],
+      }] } }) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'View Fuel filter details' }))
+
+    expect(await screen.findByText('3 in stock')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/inventory/stock/part-stock')
   })
 
   it('starts Keycloak sign-out when the signed-in customer chooses sign out', async () => {
