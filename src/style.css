@@ -17,3 +17,5 @@ button:focus-visible,a:focus-visible,input:focus-visible { outline:3px solid #55
 @keyframes fade-in { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 .refresh-activity { margin:.4rem 0 1.25rem; border:1px solid #0f766e; border-radius:.45rem; padding:.6rem .85rem; background:#f0fdfa; color:#0f766e; cursor:pointer; font:inherit; font-weight:700; }
 .refresh-activity:hover,.refresh-activity:focus-visible { background:#ccfbf1; }
+.create-account { border:1px solid #0f766e; border-radius:.45rem; padding:.55rem .8rem; background:#f0fdfa; color:#0f766e; cursor:pointer; font:inherit; font-weight:700; }
+.create-account:hover,.create-account:focus-visible { background:#ccfbf1; }

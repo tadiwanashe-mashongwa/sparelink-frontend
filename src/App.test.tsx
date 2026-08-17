@@ -110,6 +110,17 @@ describe('App', () => {
     expect(login).toHaveBeenCalledOnce()
   })
 
+  it('starts Keycloak registration when the customer chooses create account', async () => {
+    const user = userEvent.setup()
+    const register = vi.spyOn(keycloak, 'register').mockResolvedValue(undefined)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(await screen.getByRole('button', { name: 'Create account' }))
+
+    expect(register).toHaveBeenCalledWith({ redirectUri: window.location.origin })
+  })
+
   it('starts Keycloak sign-out when the signed-in customer chooses sign out', async () => {
     const originalAuthentication = keycloak.authenticated
     const logout = vi.spyOn(keycloak, 'logout').mockResolvedValue(undefined)
