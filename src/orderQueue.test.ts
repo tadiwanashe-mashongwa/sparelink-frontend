@@ -18,7 +18,7 @@ describe('order queue', () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true })
     vi.stubGlobal('fetch', fetchMock)
 
-    await flushQueuedOrders('customer-1', 'access-token')
+    const deliveredOrderCount = await flushQueuedOrders('customer-1', 'access-token')
 
     expect(fetchMock).toHaveBeenCalledWith('/api/orders', {
       method: 'POST',
@@ -30,5 +30,6 @@ describe('order queue', () => {
       body: JSON.stringify({ customerId: 'customer-1', items: queued.items }),
     })
     expect(getQueuedOrders()).toEqual([])
+    expect(deliveredOrderCount).toBe(1)
   })
 })

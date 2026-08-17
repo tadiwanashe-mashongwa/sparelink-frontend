@@ -21,6 +21,7 @@ export function enqueueOrder(items: QueuedOrderItem[]): QueuedOrder {
 
 export async function flushQueuedOrders(customerId: string, accessToken: string) {
   const remaining: QueuedOrder[] = []
+  let deliveredOrderCount = 0
 
   for (const order of getQueuedOrders()) {
     try {
@@ -34,10 +35,12 @@ export async function flushQueuedOrders(customerId: string, accessToken: string)
         body: JSON.stringify({ customerId, items: order.items }),
       })
       if (!response.ok) remaining.push(order)
+      else deliveredOrderCount += 1
     } catch {
       remaining.push(order)
     }
   }
 
   localStorage.setItem(ORDER_QUEUE_KEY, JSON.stringify(remaining))
+  return deliveredOrderCount
 }

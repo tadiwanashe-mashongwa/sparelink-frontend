@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 import { keycloak } from './auth'
-import { getQueuedOrders } from './orderQueue'
+import { enqueueOrder, getQueuedOrders } from './orderQueue'
 
 describe('App', () => {
   it('shows catalogue parts returned by the catalogue service', async () => {
@@ -215,6 +215,20 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Place order' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('1 order waiting for delivery when you are online.')
+  })
+
+  it('confirms when queued orders are delivered after the customer signs in', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-3' } })
+    enqueueOrder([{ partId: 'part-delivered', quantity: 1 }])
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ content: [] }) }))
+
+    render(<App />)
+
+    expect(await screen.findByText('1 queued order delivered successfully.')).toBeInTheDocument()
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
 
   it('queues only one order when checkout is clicked twice quickly', async () => {
