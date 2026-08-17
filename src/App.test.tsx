@@ -190,6 +190,23 @@ describe('App', () => {
     expect(localStorage.getItem('sparelink.cart')).toContain('"quantity":1')
   })
 
+  it('increases a cart item quantity from the cart', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-increase', sku: 'OIL-002', name: 'Synthetic engine oil', brandName: 'Castrol', categoryName: 'Lubricants',
+      price: { amount: 2200, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Increase Synthetic engine oil quantity' }))
+
+    expect(screen.getByText('Synthetic engine oil × 2')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cart (2)' })).toBeInTheDocument()
+    expect(localStorage.getItem('sparelink.cart')).toContain('"quantity":2')
+  })
+
   it('shows the total amount before the customer places an order', async () => {
     const user = userEvent.setup()
     localStorage.setItem('sparelink.cart', JSON.stringify([{
