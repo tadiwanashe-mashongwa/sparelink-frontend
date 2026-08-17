@@ -8,7 +8,14 @@ export const keycloakConfiguration = {
 
 export const keycloak = new Keycloak(keycloakConfiguration)
 
+export async function refreshAuthenticationToken() {
+  await keycloak.updateToken(30)
+}
+
 export async function initializeAuthentication() {
+  keycloak.onTokenExpired = () => {
+    void refreshAuthenticationToken().catch(() => keycloak.login({ redirectUri: window.location.origin }))
+  }
   await keycloak.init({
     onLoad: 'check-sso',
     pkceMethod: 'S256',
