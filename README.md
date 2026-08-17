@@ -1,6 +1,7 @@
 # SpareLink Frontend
 
 [![CI](https://github.com/tadiwanashe-mashongwa/sparelink-frontend/actions/workflows/ci.yml/badge.svg)](https://github.com/tadiwanashe-mashongwa/sparelink-frontend/actions/workflows/ci.yml)
+[![Coverage](https://raw.githubusercontent.com/tadiwanashe-mashongwa/sparelink-frontend/main/.github/badges/coverage.svg)](https://github.com/tadiwanashe-mashongwa/sparelink-frontend/actions/workflows/ci.yml)
 
 The customer-facing Progressive Web App for the SpareLink automotive spare-parts platform. It lets customers browse the live catalogue, search parts, build a cart, and safely queue orders when connectivity is unavailable.
 
