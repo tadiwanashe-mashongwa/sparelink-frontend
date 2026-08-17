@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { keycloak } from './auth'
+import { enqueueOrder } from './orderQueue'
+import './cart.css'
 
 const CATALOGUE_CACHE_KEY = 'sparelink.catalogue.parts'
 const CART_CACHE_KEY = 'sparelink.cart'
@@ -31,6 +33,7 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>(loadCart)
   const [isCartOpen, setIsCartOpen] = useState(false)
+  const [orderQueued, setOrderQueued] = useState(false)
 
   useEffect(() => { localStorage.setItem(CART_CACHE_KEY, JSON.stringify(cart)) }, [cart])
 
@@ -40,6 +43,12 @@ export default function App() {
       if (existing) return currentCart.map((item) => item.id === part.id ? { ...item, quantity: item.quantity + 1 } : item)
       return [...currentCart, { ...part, quantity: 1 }]
     })
+  }
+
+  function queueCartOrder() {
+    enqueueOrder(cart.map((item) => ({ partId: item.id, quantity: item.quantity })))
+    setCart([])
+    setOrderQueued(true)
   }
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0)
@@ -67,7 +76,7 @@ export default function App() {
   }, []) // The first load must occur once; searches are explicit user actions.
   return <main className="app-shell">
     <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home">Spare<span>Link</span></a><div className="header-actions"><p>Find the right part, even on a patchy connection.</p><button className="cart-button" type="button" onClick={() => setIsCartOpen(true)}>Cart ({cartCount})</button>{keycloak.authenticated ? <span className="signed-in">Signed in</span> : <button className="sign-in" type="button" onClick={() => void keycloak.login()}>Sign in</button>}</div></header>
-    {isCartOpen && <aside className="cart-panel" aria-labelledby="cart-heading"><div className="cart-panel-heading"><h2 id="cart-heading">Your cart</h2><button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button></div>{cart.length === 0 ? <p>Your cart is empty.</p> : <ul className="cart-items">{cart.map((item) => <li key={item.id}><div><strong>{item.name} × {item.quantity}</strong><span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></div></li>)}</ul>}</aside>}
+    {isCartOpen && <aside className="cart-panel" aria-labelledby="cart-heading"><div className="cart-panel-heading"><h2 id="cart-heading">Your cart</h2><button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button></div>{orderQueued && <p className="queued-notice" role="status">Order saved for delivery when you are online.</p>}{cart.length === 0 ? <p>Your cart is empty.</p> : <><ul className="cart-items">{cart.map((item) => <li key={item.id}><div><strong>{item.name} × {item.quantity}</strong><span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></div></li>)}</ul><button className="place-order" type="button" onClick={queueCartOrder}>Place order</button></>}</aside>}
     <section className="catalogue" aria-labelledby="catalogue-heading">
       <div className="catalogue-heading"><div><p className="eyebrow">Spare parts marketplace</p><h1 id="catalogue-heading">Browse parts</h1></div><span className="connection-status">{isOffline ? 'Offline catalogue' : 'Live catalogue'}</span></div>
       <form className="search-form" onSubmit={(event) => { event.preventDefault(); void loadParts(search.trim()) }}>

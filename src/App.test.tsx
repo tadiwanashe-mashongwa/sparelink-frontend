@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App'
 import { keycloak } from './auth'
+import { getQueuedOrders } from './orderQueue'
 
 describe('App', () => {
   it('shows catalogue parts returned by the catalogue service', async () => {
@@ -122,5 +123,21 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Your cart' })).toBeInTheDocument()
     expect(screen.getByText('Alternator belt × 2')).toBeInTheDocument()
     expect(screen.getByText('USD 50.00')).toBeInTheDocument()
+  })
+
+  it('queues a cart order locally for later delivery', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-6', sku: 'PMP-001', name: 'Water pump', brandName: 'Aisin', categoryName: 'Cooling',
+      price: { amount: 6000, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Place order' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('Order saved for delivery when you are online.')
+    expect(getQueuedOrders()[0]).toMatchObject({ items: [{ partId: 'part-6', quantity: 1 }] })
   })
 })
