@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { keycloak } from './auth'
-import { enqueueOrder, flushQueuedOrders } from './orderQueue'
+import { enqueueOrder, flushQueuedOrders, getQueuedOrders } from './orderQueue'
 import './cart.css'
 
 const CATALOGUE_CACHE_KEY = 'sparelink.catalogue.parts'
@@ -37,7 +37,7 @@ export default function App() {
   const [search, setSearch] = useState('')
   const [cart, setCart] = useState<CartItem[]>(loadCart)
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [orderQueued, setOrderQueued] = useState(false)
+  const [queuedOrderCount, setQueuedOrderCount] = useState(getQueuedOrders().length)
   const [orders, setOrders] = useState<OrderSummary[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
 
@@ -86,7 +86,7 @@ export default function App() {
   function queueCartOrder() {
     enqueueOrder(cart.map((item) => ({ partId: item.id, quantity: item.quantity })))
     setCart([])
-    setOrderQueued(true)
+    setQueuedOrderCount(getQueuedOrders().length)
   }
 
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0)
@@ -127,7 +127,7 @@ export default function App() {
 
   return <main className="app-shell">
     <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home">Spare<span>Link</span></a><div className="header-actions"><p>Find the right part, even on a patchy connection.</p><button className="cart-button" type="button" onClick={() => setIsCartOpen(true)}>Cart ({cartCount})</button>{keycloak.authenticated ? <><span className="signed-in">Signed in</span><button className="sign-out" type="button" onClick={() => void keycloak.logout({ redirectUri: window.location.origin })}>Sign out</button></> : <button className="sign-in" type="button" onClick={() => void keycloak.login()}>Sign in</button>}</div></header>
-    {isCartOpen && <aside className="cart-panel" aria-labelledby="cart-heading"><div className="cart-panel-heading"><h2 id="cart-heading">Your cart</h2><button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button></div>{orderQueued && <p className="queued-notice" role="status">Order saved for delivery when you are online.</p>}{cart.length === 0 ? <p>Your cart is empty.</p> : <><ul className="cart-items">{cart.map((item) => <li key={item.id}><div><strong>{item.name} × {item.quantity}</strong><span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></div><div className="cart-item-actions"><button className="remove-from-cart" type="button" onClick={() => decreaseCartItemQuantity(item.id)} aria-label={`Decrease ${item.name} quantity`}>−</button><button className="remove-from-cart" type="button" onClick={() => removeFromCart(item.id)} aria-label={`Remove ${item.name} from cart`}>Remove</button></div></li>)}</ul><p className="cart-total">Cart total: {formatPrice({ amount: cartTotal, currency: cart[0].price.currency })}</p><button className="place-order" type="button" onClick={queueCartOrder}>Place order</button></>}</aside>}
+    {isCartOpen && <aside className="cart-panel" aria-labelledby="cart-heading"><div className="cart-panel-heading"><h2 id="cart-heading">Your cart</h2><button type="button" onClick={() => setIsCartOpen(false)} aria-label="Close cart">×</button></div>{queuedOrderCount > 0 && <p className="queued-notice" role="status">{queuedOrderCount} {queuedOrderCount === 1 ? 'order' : 'orders'} waiting for delivery when you are online.</p>}{cart.length === 0 ? <p>Your cart is empty.</p> : <><ul className="cart-items">{cart.map((item) => <li key={item.id}><div><strong>{item.name} × {item.quantity}</strong><span>{formatPrice({ ...item.price, amount: item.price.amount * item.quantity })}</span></div><div className="cart-item-actions"><button className="remove-from-cart" type="button" onClick={() => decreaseCartItemQuantity(item.id)} aria-label={`Decrease ${item.name} quantity`}>−</button><button className="remove-from-cart" type="button" onClick={() => removeFromCart(item.id)} aria-label={`Remove ${item.name} from cart`}>Remove</button></div></li>)}</ul><p className="cart-total">Cart total: {formatPrice({ amount: cartTotal, currency: cart[0].price.currency })}</p><button className="place-order" type="button" onClick={queueCartOrder}>Place order</button></>}</aside>}
     <section className="catalogue" aria-labelledby="catalogue-heading">
       <div className="catalogue-heading"><div><p className="eyebrow">Spare parts marketplace</p><h1 id="catalogue-heading">Browse parts</h1></div><span className="connection-status">{isOffline ? 'Offline catalogue' : 'Live catalogue'}</span></div>
       <form className="search-form" onSubmit={(event) => { event.preventDefault(); void loadParts(search.trim()) }}>

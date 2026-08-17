@@ -198,8 +198,23 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
     await user.click(screen.getByRole('button', { name: 'Place order' }))
 
-    expect(screen.getByRole('status')).toHaveTextContent('Order saved for delivery when you are online.')
+    expect(screen.getByRole('status')).toHaveTextContent('1 order waiting for delivery when you are online.')
     expect(getQueuedOrders()[0]).toMatchObject({ items: [{ partId: 'part-6', quantity: 1 }] })
+  })
+
+  it('shows how many orders are waiting for delivery after checkout', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-pending', sku: 'PMP-002', name: 'Fuel pump', brandName: 'Bosch', categoryName: 'Fuel',
+      price: { amount: 8000, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Place order' }))
+
+    expect(screen.getByRole('status')).toHaveTextContent('1 order waiting for delivery when you are online.')
   })
 
   it('queues only one order when checkout is clicked twice quickly', async () => {
