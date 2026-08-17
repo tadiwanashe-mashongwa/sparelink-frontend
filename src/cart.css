@@ -1,6 +1,7 @@
 .place-order { width: 100%; border: 0; border-radius: .4rem; padding: .8rem; background: #0f766e; color: #fff; font: inherit; font-weight: 700; cursor: pointer; }
 .queued-notice { padding: .75rem; border-radius: .4rem; background: #d5f5ea; color: #116149; }
 .delivery-notice { padding: .75rem; border-radius: .4rem; background: #e0f2fe; color: #075985; }
+.retry-notice { padding: .75rem; border-radius: .4rem; background: #fff7ed; color: #9a3412; }
 .cart-total { margin: 1rem 0; font-size: 1.05rem; font-weight: 700; text-align: right; }
 .cart-items li { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 .cart-item-actions { display: flex; align-items: center; gap: .75rem; }

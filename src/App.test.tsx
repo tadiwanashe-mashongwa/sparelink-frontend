@@ -231,6 +231,20 @@ describe('App', () => {
     Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
 
+  it('explains that a queued order will retry when delivery fails', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-4' } })
+    enqueueOrder([{ partId: 'part-retry', quantity: 1 }])
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+
+    render(<App />)
+
+    expect(await screen.findByText('Your queued order is safe and will retry when you are online.')).toBeInTheDocument()
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
+  })
+
   it('queues only one order when checkout is clicked twice quickly', async () => {
     const user = userEvent.setup()
     localStorage.setItem('sparelink.cart', JSON.stringify([{
