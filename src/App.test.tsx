@@ -365,6 +365,21 @@ describe('App', () => {
     })
   })
 
+  it('shows loading feedback while account activity is being retrieved', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-loading' } })
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})))
+
+    render(<App />)
+    await userEvent.setup().click(screen.getByRole('button', { name: 'My account' }))
+
+    expect(await screen.findByText('Loading recent orders…')).toBeInTheDocument()
+    expect(screen.getByText('Loading payments…')).toBeInTheDocument()
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
+  })
+
   it('shows the signed-in customer their payment status', async () => {
     const originalAuthentication = keycloak.authenticated
     const originalToken = keycloak.token
