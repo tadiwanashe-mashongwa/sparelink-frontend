@@ -295,6 +295,7 @@ describe('App', () => {
       body: JSON.stringify({ customerId: 'customer-order', items: [{ partId: 'part-online-order', quantity: 1 }] }),
     }))
     expect(fetchMock.mock.calls.filter(([url]) => url === '/api/orders/customer/customer-order?size=5')).toHaveLength(2)
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/payments/customer/customer-order?size=5')).toHaveLength(2)
     expect(screen.getByRole('heading', { name: 'Your SpareLink activity' })).toBeInTheDocument()
     expect(getQueuedOrders()).toHaveLength(0)
     Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
