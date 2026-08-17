@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { keycloak } from './auth'
 
 const CATALOGUE_CACHE_KEY = 'sparelink.catalogue.parts'
 type Money = { amount: number; currency: string }
@@ -43,7 +44,7 @@ export default function App() {
     void loadParts()
   }, []) // The first load must occur once; searches are explicit user actions.
   return <main className="app-shell">
-    <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home">Spare<span>Link</span></a><p>Find the right part, even on a patchy connection.</p></header>
+    <header className="site-header"><a className="brand" href="/" aria-label="SpareLink home">Spare<span>Link</span></a><div className="header-actions"><p>Find the right part, even on a patchy connection.</p>{keycloak.authenticated ? <span className="signed-in">Signed in</span> : <button className="sign-in" type="button" onClick={() => void keycloak.login()}>Sign in</button>}</div></header>
     <section className="catalogue" aria-labelledby="catalogue-heading">
       <div className="catalogue-heading"><div><p className="eyebrow">Spare parts marketplace</p><h1 id="catalogue-heading">Browse parts</h1></div><span className="connection-status">{isOffline ? 'Offline catalogue' : 'Live catalogue'}</span></div>
       <form className="search-form" onSubmit={(event) => { event.preventDefault(); void loadParts(search.trim()) }}>

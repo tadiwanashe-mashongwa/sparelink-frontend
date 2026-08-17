@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from './App'
+import { keycloak } from './auth'
 
 describe('App', () => {
   it('shows catalogue parts returned by the catalogue service', async () => {
@@ -77,5 +78,16 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Brake pad' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenLastCalledWith('/api/parts?status=ACTIVE&size=20&keyword=brake+pad')
+  })
+
+  it('starts Keycloak sign-in when the customer chooses sign in', async () => {
+    const user = userEvent.setup()
+    const login = vi.spyOn(keycloak, 'login').mockResolvedValue(undefined)
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Sign in' }))
+
+    expect(login).toHaveBeenCalledOnce()
   })
 })
