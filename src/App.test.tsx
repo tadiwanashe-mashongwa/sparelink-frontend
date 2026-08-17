@@ -138,6 +138,23 @@ describe('App', () => {
     expect(screen.getByText('USD 50.00')).toBeInTheDocument()
   })
 
+  it('removes an item from the cart', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-remove', sku: 'BLT-002', name: 'Timing belt', brandName: 'Gates', categoryName: 'Belts',
+      price: { amount: 3200, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Remove Timing belt from cart' }))
+
+    expect(screen.getByText('Your cart is empty.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cart (0)' })).toBeInTheDocument()
+    expect(localStorage.getItem('sparelink.cart')).toBe('[]')
+  })
+
   it('queues a cart order locally for later delivery', async () => {
     const user = userEvent.setup()
     localStorage.setItem('sparelink.cart', JSON.stringify([{
