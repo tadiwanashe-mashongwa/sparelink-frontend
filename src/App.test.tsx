@@ -214,10 +214,28 @@ describe('App', () => {
 
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
-    await user.click(screen.getByRole('button', { name: 'Place order' }))
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm order' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('1 order waiting for delivery when you are online.')
     expect(getQueuedOrders()[0]).toMatchObject({ items: [{ partId: 'part-6', quantity: 1 }] })
+  })
+
+  it('opens a checkout review before submitting the cart', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-checkout', sku: 'BAT-001', name: 'Starter battery', brandName: 'Bosch', categoryName: 'Electrical',
+      price: { amount: 11000, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+
+    expect(screen.getByRole('heading', { name: 'Review your order' })).toBeInTheDocument()
+    expect(screen.getByText('Starter battery × 1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
   })
 
   it('shows how many orders are waiting for delivery after checkout', async () => {
@@ -230,7 +248,8 @@ describe('App', () => {
 
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
-    await user.click(screen.getByRole('button', { name: 'Place order' }))
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+    await user.click(screen.getByRole('button', { name: 'Confirm order' }))
 
     expect(screen.getByRole('status')).toHaveTextContent('1 order waiting for delivery when you are online.')
   })
@@ -273,8 +292,8 @@ describe('App', () => {
 
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
-    const placeOrder = screen.getByRole('button', { name: 'Place order' })
-    await user.dblClick(placeOrder)
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+    await user.dblClick(screen.getByRole('button', { name: 'Confirm order' }))
 
     expect(getQueuedOrders()).toHaveLength(1)
   })
