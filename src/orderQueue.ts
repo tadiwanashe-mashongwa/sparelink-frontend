@@ -18,3 +18,26 @@ export function enqueueOrder(items: QueuedOrderItem[]): QueuedOrder {
   localStorage.setItem(ORDER_QUEUE_KEY, JSON.stringify([...getQueuedOrders(), order]))
   return order
 }
+
+export async function flushQueuedOrders(customerId: string, accessToken: string) {
+  const remaining: QueuedOrder[] = []
+
+  for (const order of getQueuedOrders()) {
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': order.idempotencyKey,
+        },
+        body: JSON.stringify({ customerId, items: order.items }),
+      })
+      if (!response.ok) remaining.push(order)
+    } catch {
+      remaining.push(order)
+    }
+  }
+
+  localStorage.setItem(ORDER_QUEUE_KEY, JSON.stringify(remaining))
+}

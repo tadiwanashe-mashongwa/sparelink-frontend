@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { keycloak } from './auth'
-import { enqueueOrder } from './orderQueue'
+import { enqueueOrder, flushQueuedOrders } from './orderQueue'
 import './cart.css'
 
 const CATALOGUE_CACHE_KEY = 'sparelink.catalogue.parts'
@@ -36,6 +36,16 @@ export default function App() {
   const [orderQueued, setOrderQueued] = useState(false)
 
   useEffect(() => { localStorage.setItem(CART_CACHE_KEY, JSON.stringify(cart)) }, [cart])
+
+  useEffect(() => {
+    const customerId = keycloak.tokenParsed?.sub
+    if (!keycloak.authenticated || !keycloak.token || !customerId) return
+
+    const flush = () => void flushQueuedOrders(customerId, keycloak.token!)
+    flush()
+    window.addEventListener('online', flush)
+    return () => window.removeEventListener('online', flush)
+  }, [])
 
   function addToCart(part: Part) {
     setCart((currentCart) => {
