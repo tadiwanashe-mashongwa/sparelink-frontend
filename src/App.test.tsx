@@ -281,6 +281,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Recent orders' })).toBeInTheDocument()
     expect(screen.getByText('PAID')).toBeInTheDocument()
+    expect(screen.getByText('Total: 45.50')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/orders/customer/customer-1?size=5', {
       headers: { Authorization: 'Bearer customer-token' },
     })
@@ -307,6 +308,7 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Payments' })).toBeInTheDocument()
     expect(screen.getByText('PENDING')).toBeInTheDocument()
+    expect(screen.getByText('Amount: 45.50')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/payments/customer/customer-2?size=5', {
       headers: { Authorization: 'Bearer customer-token' },
     })
