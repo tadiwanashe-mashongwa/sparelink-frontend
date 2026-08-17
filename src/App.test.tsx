@@ -238,6 +238,23 @@ describe('App', () => {
     expect(screen.getByRole('button', { name: 'Confirm order' })).toBeInTheDocument()
   })
 
+  it('returns to the open cart when the customer leaves checkout', async () => {
+    const user = userEvent.setup()
+    localStorage.setItem('sparelink.cart', JSON.stringify([{
+      id: 'part-back-to-cart', sku: 'FLT-004', name: 'Cabin air filter', brandName: 'Mann', categoryName: 'Filters',
+      price: { amount: 2800, currency: 'USD' }, images: [], quantity: 1,
+    }]))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Cart (1)' }))
+    await user.click(screen.getByRole('button', { name: 'Checkout' }))
+    await user.click(screen.getByRole('button', { name: 'Back to cart' }))
+
+    expect(screen.getByRole('heading', { name: 'Your cart' })).toBeInTheDocument()
+    expect(screen.getByText('Cabin air filter × 1')).toBeInTheDocument()
+  })
+
   it('shows how many orders are waiting for delivery after checkout', async () => {
     const user = userEvent.setup()
     localStorage.setItem('sparelink.cart', JSON.stringify([{
