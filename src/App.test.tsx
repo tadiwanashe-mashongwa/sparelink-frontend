@@ -312,4 +312,20 @@ describe('App', () => {
     })
     Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
+
+  it('explains when recent orders and payments cannot be loaded', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const originalToken = keycloak.token
+    const originalTokenParsed = keycloak.tokenParsed
+    Object.assign(keycloak, { authenticated: true, token: 'customer-token', tokenParsed: { sub: 'customer-errors' } })
+    vi.stubGlobal('fetch', vi.fn((url: string) => Promise.resolve(url.startsWith('/api/parts')
+      ? { ok: true, json: async () => ({ success: true, data: { content: [] } }) }
+      : { ok: false, json: async () => ({}) })))
+
+    render(<App />)
+
+    expect(await screen.findByText('Recent orders are unavailable right now. Please try again shortly.')).toBeInTheDocument()
+    expect(screen.getByText('Payments are unavailable right now. Please try again shortly.')).toBeInTheDocument()
+    Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
+  })
 })

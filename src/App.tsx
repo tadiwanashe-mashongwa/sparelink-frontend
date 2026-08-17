@@ -42,6 +42,8 @@ export default function App() {
   const [hasQueuedOrderDeliveryFailure, setHasQueuedOrderDeliveryFailure] = useState(false)
   const [orders, setOrders] = useState<OrderSummary[]>([])
   const [payments, setPayments] = useState<Payment[]>([])
+  const [ordersUnavailable, setOrdersUnavailable] = useState(false)
+  const [paymentsUnavailable, setPaymentsUnavailable] = useState(false)
 
   useEffect(() => { localStorage.setItem(CART_CACHE_KEY, JSON.stringify(cart)) }, [cart])
 
@@ -68,9 +70,12 @@ export default function App() {
     void fetch(`/api/payments/customer/${customerId}?size=5`, {
       headers: { Authorization: `Bearer ${keycloak.token}` },
     })
-      .then(async (response) => response.ok ? response.json() as Promise<PaymentPage> : { content: [] })
-      .then((payload) => setPayments(payload.content ?? []))
-      .catch(() => setPayments([]))
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Payments request failed')
+        return response.json() as Promise<PaymentPage>
+      })
+      .then((payload) => { setPayments(payload.content ?? []); setPaymentsUnavailable(false) })
+      .catch(() => { setPayments([]); setPaymentsUnavailable(true) })
   }, [])
 
   function addToCart(part: Part) {
@@ -129,9 +134,12 @@ export default function App() {
     void fetch(`/api/orders/customer/${customerId}?size=5`, {
       headers: { Authorization: `Bearer ${keycloak.token}` },
     })
-      .then(async (response) => response.ok ? response.json() as Promise<OrderPage> : { content: [] })
-      .then((payload) => setOrders(payload.content ?? []))
-      .catch(() => setOrders([]))
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Orders request failed')
+        return response.json() as Promise<OrderPage>
+      })
+      .then((payload) => { setOrders(payload.content ?? []); setOrdersUnavailable(false) })
+      .catch(() => { setOrders([]); setOrdersUnavailable(true) })
   }, [])
 
   return <main className="app-shell">
@@ -154,7 +162,7 @@ export default function App() {
         <div className="part-content"><p className="part-meta">{part.brandName} · {part.categoryName}</p><h2>{part.name}</h2><p className="sku">SKU {part.sku}</p><strong>{formatPrice(part.price)}</strong><button className="add-to-cart" type="button" onClick={() => addToCart(part)}>Add {part.name} to cart</button></div>
       </article>)}</div>
     </section>
-    {keycloak.authenticated && <section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section>}
-    {keycloak.authenticated && <section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section>}
+    {keycloak.authenticated && <section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{ordersUnavailable ? <p>Recent orders are unavailable right now. Please try again shortly.</p> : orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section>}
+    {keycloak.authenticated && <section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{paymentsUnavailable ? <p>Payments are unavailable right now. Please try again shortly.</p> : payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section>}
   </main>
 }
