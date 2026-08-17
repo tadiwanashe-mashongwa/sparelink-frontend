@@ -90,4 +90,21 @@ describe('App', () => {
 
     expect(login).toHaveBeenCalledOnce()
   })
+
+  it('adds a part to the persisted cart', async () => {
+    const user = userEvent.setup()
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ success: true, data: { content: [{
+        id: 'part-4', sku: 'CLT-001', name: 'Clutch kit', brandName: 'Sachs', categoryName: 'Transmission',
+        price: { amount: 15000, currency: 'USD' }, images: [],
+      }] } }),
+    }))
+
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Add Clutch kit to cart' }))
+
+    expect(screen.getByRole('button', { name: 'Cart (1)' })).toBeInTheDocument()
+    expect(localStorage.getItem('sparelink.cart')).toContain('part-4')
+  })
 })
