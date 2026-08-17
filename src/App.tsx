@@ -139,6 +139,7 @@ export default function App() {
       setCart([])
       setOrderPlaced(true)
       await loadOrders()
+      setActiveView('account')
     } catch {
       enqueueOrder(items)
       setCart([])
