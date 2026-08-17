@@ -22,6 +22,17 @@ function formatServiceAmount(amount: number) {
   return amount.toFixed(2)
 }
 
+function describeOrderStatus(status: string) {
+  const descriptions: Record<string, string> = {
+    CREATED: 'Order received',
+    RESERVED: 'Parts reserved',
+    PAYMENT_PENDING: 'Payment is being prepared',
+    PAID: 'Payment complete',
+    CANCELLED: 'Order cancelled',
+  }
+  return descriptions[status] ?? 'Order processing'
+}
+
 function loadCachedParts(): Part[] {
   const cached = localStorage.getItem(CATALOGUE_CACHE_KEY)
   if (!cached) return []
@@ -172,6 +183,6 @@ export default function App() {
         <div className="part-content"><p className="part-meta">{part.brandName} · {part.categoryName}</p><h2>{part.name}</h2><p className="sku">SKU {part.sku}</p><strong>{formatPrice(part.price)}</strong><button className="view-details" type="button" onClick={() => setSelectedPart(part)} aria-label={`View ${part.name} details`}>View details</button><button className="add-to-cart" type="button" onClick={() => addToCart(part)}>Add {part.name} to cart</button></div>
       </article>)}</div></>}
     </section>}
-    {keycloak.authenticated && activeView === 'account' && <section className="account-view" aria-labelledby="account-heading"><p className="eyebrow">Customer account</p><h1 id="account-heading">Your SpareLink activity</h1><section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{ordersUnavailable ? <p>Recent orders are unavailable right now. Please try again shortly.</p> : orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><span>Total: {formatServiceAmount(order.totalAmount)}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section><section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{paymentsUnavailable ? <p>Payments are unavailable right now. Please try again shortly.</p> : payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Amount: {formatServiceAmount(payment.amount)}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section></section>}
+    {keycloak.authenticated && activeView === 'account' && <section className="account-view" aria-labelledby="account-heading"><p className="eyebrow">Customer account</p><h1 id="account-heading">Your SpareLink activity</h1><section className="recent-orders" aria-labelledby="recent-orders-heading"><h2 id="recent-orders-heading">Recent orders</h2>{ordersUnavailable ? <p>Recent orders are unavailable right now. Please try again shortly.</p> : orders.length === 0 ? <p>No orders yet.</p> : <ul>{orders.map((order) => <li key={order.orderId}><span>{order.status}</span><span className="order-progress">{describeOrderStatus(order.status)}</span><span>Total: {formatServiceAmount(order.totalAmount)}</span><time dateTime={order.createdAt}>{new Date(order.createdAt).toLocaleDateString()}</time></li>)}</ul>}</section><section className="recent-orders" aria-labelledby="payments-heading"><h2 id="payments-heading">Payments</h2>{paymentsUnavailable ? <p>Payments are unavailable right now. Please try again shortly.</p> : payments.length === 0 ? <p>No payments yet.</p> : <ul>{payments.map((payment) => <li key={payment.id}><span>{payment.status}</span><span>Amount: {formatServiceAmount(payment.amount)}</span><span>Order {payment.orderId.slice(0, 8)}</span></li>)}</ul>}</section></section>}
   </main>
 }
