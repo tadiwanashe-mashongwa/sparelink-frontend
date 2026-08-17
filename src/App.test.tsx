@@ -92,6 +92,19 @@ describe('App', () => {
     expect(login).toHaveBeenCalledOnce()
   })
 
+  it('starts Keycloak sign-out when the signed-in customer chooses sign out', async () => {
+    const originalAuthentication = keycloak.authenticated
+    const logout = vi.spyOn(keycloak, 'logout').mockResolvedValue(undefined)
+    Object.assign(keycloak, { authenticated: true })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, data: { content: [] } }) }))
+
+    render(<App />)
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Sign out' }))
+
+    expect(logout).toHaveBeenCalledWith({ redirectUri: window.location.origin })
+    Object.assign(keycloak, { authenticated: originalAuthentication })
+  })
+
   it('adds a part to the persisted cart', async () => {
     const user = userEvent.setup()
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
