@@ -138,6 +138,7 @@ export default function App() {
       if (!response.ok) throw new Error('Order request failed')
       setCart([])
       setOrderPlaced(true)
+      await loadOrders()
     } catch {
       enqueueOrder(items)
       setCart([])

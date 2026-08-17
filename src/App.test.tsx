@@ -294,6 +294,7 @@ describe('App', () => {
       headers: expect.objectContaining({ Authorization: 'Bearer customer-token' }),
       body: JSON.stringify({ customerId: 'customer-order', items: [{ partId: 'part-online-order', quantity: 1 }] }),
     }))
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/orders/customer/customer-order?size=5')).toHaveLength(2)
     expect(getQueuedOrders()).toHaveLength(0)
     Object.assign(keycloak, { authenticated: originalAuthentication, token: originalToken, tokenParsed: originalTokenParsed })
   })
