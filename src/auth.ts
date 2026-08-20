@@ -1,7 +1,7 @@
 import Keycloak from 'keycloak-js'
 
 export const keycloakConfiguration = {
-  url: import.meta.env.VITE_KEYCLOAK_URL ?? 'http://keycloak:8080',
+  url: import.meta.env.VITE_KEYCLOAK_URL ?? 'http://localhost:8080',
   realm: 'sparelink',
   clientId: 'sparelink-api',
 }
