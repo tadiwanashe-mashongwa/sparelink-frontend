@@ -25,7 +25,7 @@ export async function flushQueuedOrders(customerId: string, accessToken: string)
 
   for (const order of getQueuedOrders()) {
     try {
-      const response = await fetch('/api/orders', {
+      const response = await fetch(apiUrl('/api/orders'), {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -44,3 +44,4 @@ export async function flushQueuedOrders(customerId: string, accessToken: string)
   localStorage.setItem(ORDER_QUEUE_KEY, JSON.stringify(remaining))
   return deliveredOrderCount
 }
+import { apiUrl } from './api'

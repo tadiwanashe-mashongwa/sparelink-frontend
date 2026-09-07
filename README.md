@@ -47,7 +47,7 @@ The development server proxies requests as follows:
 | `/api/orders` | order-service (`8083`) |
 | `/api/payments` | payment-service (`8084`) |
 
-Keycloak defaults to `http://localhost:8080`, realm `sparelink`, client `sparelink-api`. Set `VITE_KEYCLOAK_URL` to use another Keycloak instance.
+Keycloak defaults to `http://localhost:8080`, realm `sparelink`, client `sparelink-api`. Set `VITE_KEYCLOAK_URL` to use another Keycloak instance. For a hosted frontend, set `VITE_API_BASE_URL` to the public API gateway URL (for example, `https://api.example.com`).
 
 ## Quality checks
 

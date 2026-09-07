@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { keycloak, registrationUrl } from './auth'
+import { apiUrl } from './api'
 import { enqueueOrder, flushQueuedOrders, getQueuedOrders } from './orderQueue'
 import './cart.css'
 
@@ -100,7 +101,7 @@ export default function App() {
   function selectPart(part: Part) {
     setSelectedPart(part)
     setAvailability((current) => ({ ...current, [part.id]: null }))
-    void fetch(`/api/inventory/stock/${part.id}`)
+    void fetch(apiUrl(`/api/inventory/stock/${part.id}`))
       .then(async (response) => {
         if (!response.ok) throw new Error('Inventory request failed')
         return response.json() as Promise<number>
@@ -143,7 +144,7 @@ export default function App() {
     setIsSubmittingOrder(true)
     const items = cart.map((item) => ({ partId: item.id, quantity: item.quantity }))
     try {
-      const response = await fetch('/api/orders', {
+      const response = await fetch(apiUrl('/api/orders'), {
         method: 'POST',
         headers: { Authorization: `Bearer ${keycloak.token}`, 'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID() },
         body: JSON.stringify({ customerId, items }),
@@ -172,7 +173,7 @@ export default function App() {
     try {
       const parameters = new URLSearchParams({ status: 'ACTIVE', size: '20' })
       if (keyword) parameters.set('keyword', keyword)
-      const response = await fetch(`/api/parts?${parameters.toString()}`)
+      const response = await fetch(apiUrl(`/api/parts?${parameters.toString()}`))
       if (!response.ok) throw new Error('Catalogue request failed')
       const payload = (await response.json()) as CatalogueResponse
       setParts(payload.data.content)
@@ -195,7 +196,7 @@ export default function App() {
     if (!keycloak.authenticated || !keycloak.token || !customerId) return
     setIsLoadingOrders(true)
     try {
-      const response = await fetch(`/api/orders/customer/${customerId}?size=5`, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+      const response = await fetch(apiUrl(`/api/orders/customer/${customerId}?size=5`), { headers: { Authorization: `Bearer ${keycloak.token}` } })
       if (!response.ok) throw new Error('Orders request failed')
       const payload = await response.json() as OrderPage
       setOrders(payload.content ?? [])
@@ -211,7 +212,7 @@ export default function App() {
     if (!keycloak.authenticated || !keycloak.token || !customerId) return
     setIsLoadingPayments(true)
     try {
-      const response = await fetch(`/api/payments/customer/${customerId}?size=5`, { headers: { Authorization: `Bearer ${keycloak.token}` } })
+      const response = await fetch(apiUrl(`/api/payments/customer/${customerId}?size=5`), { headers: { Authorization: `Bearer ${keycloak.token}` } })
       if (!response.ok) throw new Error('Payments request failed')
       const payload = await response.json() as PaymentPage
       setPayments(payload.content ?? [])
